@@ -19,19 +19,19 @@ func NewWorkerPoolStatic(size int) *WorkerPoolStatic {
 	}
 
 	m := &WorkerPoolStatic{
-		queue: NewQueue[chan<- Task](),
+		ready: make(chan chan<- Task, size),
 	}
 
 	for range size {
 		input := make(chan Task)
 
 		go func() {
-			m.queue.Push(input)
+			m.ready <- input
 
 			for task := range input {
 				task()
 
-				m.queue.Push(input)
+				m.ready <- input
 			}
 		}()
 	}
@@ -41,12 +41,12 @@ func NewWorkerPoolStatic(size int) *WorkerPoolStatic {
 
 // WorkerPoolStatic is a pool that starts n goroutines at initialization.
 type WorkerPoolStatic struct {
-	queue Queue[chan<- Task]
+	ready chan chan<- Task
 }
 
 // Go implements WorkerPool.
 func (t *WorkerPoolStatic) Go(task Task) {
-	t.queue.Next() <- task
+	(<-t.ready) <- task
 }
 
 // NewWorkerPoolDynamic initializes a new WorkerPoolDynamic.
