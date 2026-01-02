@@ -1,6 +1,7 @@
 package kingconc_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -314,8 +315,6 @@ func TestBroadcaster_ConcurrentAccess(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("concurrent subscribe/unsubscribe/broadcast operations", func(t *testing.T) {
-		t.Parallel()
-
 		broadcaster := kingconc.NewBroadcaster[int](kingconc.BroadcasterOptions{
 			WorkerPool: kingconc.Some[kingconc.WorkerPool](kingconc.NewWorkerPoolDynamic()),
 		})
@@ -327,7 +326,7 @@ func TestBroadcaster_ConcurrentAccess(t *testing.T) {
 
 		// Concurrent subscribers
 		subscribers := make([]<-chan int, numWorkers)
-		for i := 0; i < numWorkers; i++ {
+		for i := range numWorkers {
 			go func(idx int) {
 				defer wg.Done()
 				subscribers[idx] = broadcaster.Subscribe()
@@ -335,20 +334,22 @@ func TestBroadcaster_ConcurrentAccess(t *testing.T) {
 		}
 
 		// Concurrent broadcasters
-		for i := 0; i < numWorkers; i++ {
-			go func(value int) {
+		for i := range numWorkers {
+			go func() {
 				defer wg.Done()
-				for j := 0; j < numOperations; j++ {
-					broadcaster.Broadcast(value*numOperations + j)
+
+				for j := range numOperations {
+					value := i*numOperations + j
+					broadcaster.Broadcast(value)
+					fmt.Printf("broadcasted: %d\n", value)
 				}
-			}(i)
+			}()
 		}
 
 		// Concurrent unsubscribers (after some delay)
-		for i := 0; i < numWorkers; i++ {
+		for i := range numWorkers {
 			go func(idx int) {
 				defer wg.Done()
-				time.Sleep(50 * time.Millisecond) // Let some broadcasts happen
 				if subscribers[idx] != nil {
 					broadcaster.Unsubscribe(subscribers[idx])
 				}

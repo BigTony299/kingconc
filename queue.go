@@ -7,7 +7,7 @@ import "sync"
 func NewQueue[T any]() Queue[T] {
 	return Queue[T]{
 		nextChan: make(chan T),
-		inner:    make([]T, 0),
+		inner:    make([]T, 20),
 	}
 }
 
@@ -23,6 +23,8 @@ type Queue[T any] struct {
 	count int
 
 	inner []T
+
+	headIndex int
 }
 
 // Push adds an element to the back of the queue.
@@ -38,8 +40,33 @@ func (a *Queue[T]) Push(t T) {
 
 	select {
 	case a.nextChan <- t:
+		// direct transfer
+
 	default:
-		a.inner = append(a.inner, t)
+		if a.count >= len(a.inner) {
+			currLen := len(a.inner)
+
+			var newLen int
+			if currLen == 0 {
+				newLen = 10
+			} else {
+				newLen = 2 * currLen
+			}
+
+			newInner := make([]T, newLen)
+
+			for i := range currLen {
+				j := (i + a.headIndex) % currLen
+
+				newInner[i] = a.inner[j]
+			}
+
+			a.inner = newInner
+			a.headIndex = 0
+		}
+
+		next := (a.headIndex + a.count) % len(a.inner)
+		a.inner[next] = t
 		a.count += 1
 	}
 }
@@ -51,12 +78,12 @@ func (a *Queue[T]) Pop() Option[T] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if len(a.inner) == 0 {
+	if a.count == 0 {
 		return None[T]()
 	}
 
-	v := a.inner[0]
-	a.inner = a.inner[1:]
+	v := a.inner[a.headIndex]
+	a.headIndex = (a.headIndex + 1) % len(a.inner)
 	a.count -= 1
 
 	return Some(v)
@@ -69,11 +96,11 @@ func (a *Queue[T]) Peek() Option[T] {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	if len(a.inner) == 0 {
+	if a.count == 0 {
 		return None[T]()
 	}
 
-	return Some(a.inner[0])
+	return Some(a.inner[a.headIndex])
 }
 
 // Count returns the current number of elements in the queue.

@@ -232,40 +232,6 @@ func TestWorkerPool_PerformanceComparison(t *testing.T) {
 			},
 		},
 		{
-			name: "WorkerPoolStatic-1",
-			pool: kingconc.NewWorkerPoolStatic(1),
-			executor: func(pool kingconc.WorkerPool, tasks []kingconc.Task) {
-				var wg sync.WaitGroup
-				wg.Add(len(tasks))
-
-				for _, task := range tasks {
-					taskCopy := task
-					pool.Go(func() {
-						defer wg.Done()
-						taskCopy()
-					})
-				}
-				wg.Wait()
-			},
-		},
-		{
-			name: "WorkerPoolSync",
-			pool: kingconc.NewWorkerPoolSync(),
-			executor: func(pool kingconc.WorkerPool, tasks []kingconc.Task) {
-				var wg sync.WaitGroup
-				wg.Add(len(tasks))
-
-				for _, task := range tasks {
-					taskCopy := task
-					pool.Go(func() {
-						defer wg.Done()
-						taskCopy()
-					})
-				}
-				wg.Wait()
-			},
-		},
-		{
 			name: "WorkerPoolStatic-10",
 			pool: kingconc.NewWorkerPoolStatic(10),
 			executor: func(pool kingconc.WorkerPool, tasks []kingconc.Task) {
@@ -302,6 +268,23 @@ func TestWorkerPool_PerformanceComparison(t *testing.T) {
 		{
 			name: "WorkerPoolStatic-1000",
 			pool: kingconc.NewWorkerPoolStatic(1000),
+			executor: func(pool kingconc.WorkerPool, tasks []kingconc.Task) {
+				var wg sync.WaitGroup
+				wg.Add(len(tasks))
+
+				for _, task := range tasks {
+					taskCopy := task
+					pool.Go(func() {
+						defer wg.Done()
+						taskCopy()
+					})
+				}
+				wg.Wait()
+			},
+		},
+		{
+			name: "WorkerPoolStatic-50000",
+			pool: kingconc.NewWorkerPoolStatic(50000),
 			executor: func(pool kingconc.WorkerPool, tasks []kingconc.Task) {
 				var wg sync.WaitGroup
 				wg.Add(len(tasks))

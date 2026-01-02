@@ -10,7 +10,6 @@ type Broadcaster[T any] struct {
 	mu sync.RWMutex
 
 	subscribers []chan T
-	workerPool  WorkerPool
 	bufferSize  int
 	closed      bool
 }
@@ -19,7 +18,6 @@ type Broadcaster[T any] struct {
 // Uses provided pool for message delivery, or SyncPool if nil.
 func NewBroadcaster[T any](options BroadcasterOptions) *Broadcaster[T] {
 	return &Broadcaster[T]{
-		workerPool: options.WorkerPool.GetOrDefault(NewWorkerPoolSync()),
 		bufferSize: options.BufferSize.GetOrDefault(0),
 	}
 }
@@ -58,12 +56,10 @@ func (o *Broadcaster[T]) Broadcast(t T) {
 	}
 
 	for _, c := range o.subscribers {
-		o.workerPool.Go(func() {
-			select {
-			case c <- t:
-			default:
-			}
-		})
+		select {
+		case c <- t:
+		default:
+		}
 	}
 }
 
